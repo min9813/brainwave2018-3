@@ -25,7 +25,6 @@ void keyPressed(){
 }
 
 
-
 //発光表現の元となるクラス
 PImage createLight(float rPower,float gPower,float bPower){
   int side=64;
