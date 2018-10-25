@@ -4,7 +4,12 @@ int start_t;
 int t;
 float star_ratio = 0.5;
 int prev_t;
-int switch_num = 1;
+int SWITCH_TIME = 1;
+int out_alpha=30;
+int draw_alpha;
+int FIX_ALPHA=200;
+int START_ALPHA=0;
+int CHANGE_ALPHA = 3;
 PImage offscr;
 Star[] s = new Star[100];
 //位置のベクトルの配列
@@ -47,10 +52,10 @@ void setup() {
   randomSeed(0);
 }
 
-void drawelp(int num, float[] diameters){
+void drawelp(int num, float[] diameters, int alpha){
     // 円を描く、第一引数が円の数、第二引数が円の直径の配列
     for (int i = 0; i < num; i++) {
-        fill(elp_col[i], 100); //色を指定
+        fill(elp_col[i], alpha); //色を指定
         //指定した位置に円を描画
         ellipse(location[i].x, location[i].y, diameters[i], diameters[i]);
         //位置のベクトルに速度のベクトルを加算、次の位置になる
@@ -66,11 +71,11 @@ void drawelp(int num, float[] diameters){
     }
 }
 
-void drawstar(int num, int remain_num){
+void drawstar(int num, int remain_num, int alpha){
     // 星を描く
     // 第一引数が描く星の数、第二引数が残す円の数
     for (int i=0;i<num;i++){
-        s[i+remain_num] = new Star(location[i+remain_num].x,location[i+remain_num].y, star_diameter[i+remain_num], star_col[i+remain_num]);
+        s[i+remain_num] = new Star(location[i+remain_num].x,location[i+remain_num].y, star_diameter[i+remain_num], star_col[i+remain_num], alpha);
         location[i+remain_num].add(velocity[i+remain_num]);
         s[i+remain_num].drawStar();
         if ((location[i+remain_num].x > width) || (location[i+remain_num].x < 0)) {
@@ -82,8 +87,28 @@ void drawstar(int num, int remain_num){
     }
 }
 
+int count_alpha(int time, int threshold){
+    // 透明度の計算
+   //println("time:"+time);
+    if(time<=(threshold+1)*SWITCH_TIME){
+      if (START_ALPHA<FIX_ALPHA){
+        START_ALPHA = START_ALPHA + CHANGE_ALPHA;
+      }
+      //println("START ALPHA:"+START_ALPHA);
+      draw_alpha = START_ALPHA;
+    }else if((threshold+1)*SWITCH_TIME<time&time<=(threshold+2)*SWITCH_TIME){
+      draw_alpha = FIX_ALPHA;
+      START_ALPHA = 0;
+      //println("draw_alpha:"+draw_alpha);
+    }else{
+      draw_alpha = draw_alpha - CHANGE_ALPHA;
+    }
+  
+  return draw_alpha;
+}
+
 void draw() {
-  //background(15); //背景を描画
+  background(15); //背景を描画
   //配列の数だけ繰り返し
   //loadPixels();
   //offscr.pixels = pixels;
@@ -91,42 +116,45 @@ void draw() {
 
   // 以下２行で残像を追加
   // fillの第二引数が小さい程残像が長くなる
-  fill(0, 25);
-  rect(0, 0, width, height);
+  //fill(0, out_alpha);
+  //rect(0, 0, width, height);
 
 
   t = hour()*3600+minute()*60+second() - start_t;
 
 
   // 処理の条件分け
-  if (t>switch_num&t<=2*switch_num){
+  if (t>0*SWITCH_TIME&t<=5*SWITCH_TIME){
     //   円の半径と数の増加
-      drawelp(int(ELP_NUM), new_elp_diameter);
-  }else if(t>2*switch_num&t<=3*switch_num){
+    draw_alpha = count_alpha(t, 1);
+    drawelp(int(ELP_NUM), new_elp_diameter, draw_alpha);
+  }else if(t>5*SWITCH_TIME&t<=9*SWITCH_TIME){
     // 星の出現、star_ratioで全部の円のうち何割星にするか決める。
       star_ratio=0.8;
-      drawstar(int(STAR_NUM*star_ratio),int(ELP_NUM*(1-star_ratio)));
-      drawelp(int(ELP_NUM*(1-star_ratio)), new_elp_diameter); 
-  }else if (t>3*switch_num){
-    //   最初に戻す
+      draw_alpha = count_alpha(t, 5);
+      drawstar(int(STAR_NUM*star_ratio),int(ELP_NUM*(1-star_ratio)), draw_alpha);
+      drawelp(int(ELP_NUM*(1-star_ratio)), new_elp_diameter, draw_alpha); 
+
+  }else if (t>9*SWITCH_TIME){
       start_t = hour()*3600+minute()*60+second();
   }else{
     //   デフォルト
-      drawelp(1, elp_diameter);
+      draw_alpha = FIX_ALPHA;
+      drawelp(1, elp_diameter, draw_alpha);
   }
-  //tint(10, 30);
-  //image(offscr, -10, -10, width + 100, height + 100);
 }
 
 class Star {
     float x, y, r;
     color c;
+    int alpha;
     boolean right = true;
-    Star(float _x, float _y, float _r, color _c) {
+    Star(float _x, float _y, float _r, color _c, int _alpha) {
         x = _x;
         y = _y;
         r = _r;
         c = _c;
+        alpha = _alpha;
     }
     void drawStar() {
         float vNf = random(5, 6); //頂点の数は5-20まででランダム 
@@ -136,7 +164,7 @@ class Star {
 
         int Ros = int(r); 
         noStroke(); 
-        fill(c, 100); 
+        fill(c, alpha); 
         pushMatrix(); 
         translate(x, y);  
         beginShape(); 
