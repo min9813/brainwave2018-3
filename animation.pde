@@ -1,3 +1,4 @@
+ArrayList<Fireworks> fireworks=new ArrayList<Fireworks>();
 int ELP_NUM = 100; //配列の数
 int STAR_NUM = 100;
 int start_t;
@@ -23,12 +24,16 @@ float[] elp_diameter = new float[ELP_NUM];
 float[] new_elp_diameter = new float[ELP_NUM];
 float[] star_diameter = new float[STAR_NUM];
 color[] star_col = new color[STAR_NUM];
-
+float x_figure = 0.1, y_figure = 0.1;
 
 
 void setup() {
-  size(800, 600); //800x600pixelの画面を生成
-  frameRate(60); //フレームレート
+  //size(800, 600); //800x600pixelの画面を生成
+  fullScreen(P3D);
+  frameRate(30); //フレームレート
+  hint(DISABLE_DEPTH_TEST);
+  blendMode(ADD);
+  imageMode(CENTER);
   noStroke();
   for (int i = 0; i < ELP_NUM; i++) { //配列の数だけ繰り返し
     //位置のベクトルの初期設定
@@ -54,6 +59,7 @@ void setup() {
 
 void drawelp(int num, float[] diameters, int alpha){
     // 円を描く、第一引数が円の数、第二引数が円の直径の配列
+      noStroke();
     for (int i = 0; i < num; i++) {
         fill(elp_col[i], alpha); //色を指定
         //指定した位置に円を描画
@@ -74,6 +80,7 @@ void drawelp(int num, float[] diameters, int alpha){
 void drawstar(int num, int remain_num, int alpha){
     // 星を描く
     // 第一引数が描く星の数、第二引数が残す円の数
+      noStroke();
     for (int i=0;i<num;i++){
         s[i+remain_num] = new Star(location[i+remain_num].x,location[i+remain_num].y, star_diameter[i+remain_num], star_col[i+remain_num], alpha);
         location[i+remain_num].add(velocity[i+remain_num]);
@@ -87,9 +94,59 @@ void drawstar(int num, int remain_num, int alpha){
     }
 }
 
+void draw_firework(boolean is_going){
+      //println("yes");
+      println(is_going);
+        noStroke();
+   if(is_going){
+      fireworks.add(new Fireworks(80));
+   }
+   for(int i=0;i<fireworks.size();i++){
+     Fireworks art=fireworks.get(i);
+     if(art.centerPosition.y-art.radius>height){
+       fireworks.remove(i);
+     }
+     art.display();
+     art.update();
+   }
+
+}
+
+void figure(float z){
+  float a = 0.5;
+  float b = 0.1;
+  float c = -1.75;
+  float d;
+
+  d = 0.25+(1.4-0.25)*sin(z)*sin(z);
+  //a = random(1);
+  //b = random(1);
+  //c = random(1);
+  //d = random(1);
+  
+  stroke(z,random(255),random(255));
+ 
+  float _x, _y;
+  float A;
+  for (int i = 0; i < 100; i++) {
+ 
+    A = a * (x_figure * x_figure + y_figure * y_figure) + b * x_figure * (x_figure * x_figure - 3 * y_figure * y_figure) + c;
+    _x = A * x_figure + d * (x_figure * x_figure - y_figure * y_figure);
+    _y = A * y_figure - 2 * d * x_figure * y_figure;
+ 
+    point(_x * 200 + width/2, - _y * 200 + height/2);
+    //point(a*200 + width/2,b*200 + height/2);
+    
+    x_figure = _x;
+    y_figure = _y;
+  }
+
+}
+
 int count_alpha(int time, int threshold){
     // 透明度の計算
    //println("time:"+time);
+   
     if(time<=(threshold+1)*SWITCH_TIME){
       if (START_ALPHA<FIX_ALPHA){
         START_ALPHA = START_ALPHA + CHANGE_ALPHA;
@@ -107,8 +164,12 @@ int count_alpha(int time, int threshold){
   return draw_alpha;
 }
 
+void reset_background(){
+  background(0);
+}
+
 void draw() {
-  background(15); //背景を描画
+  //background(0); //背景を描画
   //配列の数だけ繰り返し
   //loadPixels();
   //offscr.pixels = pixels;
@@ -126,19 +187,28 @@ void draw() {
   // 処理の条件分け
   if (t>0*SWITCH_TIME&t<=5*SWITCH_TIME){
     //   円の半径と数の増加
+    reset_background();
     draw_alpha = count_alpha(t, 1);
     drawelp(int(ELP_NUM), new_elp_diameter, draw_alpha);
   }else if(t>5*SWITCH_TIME&t<=9*SWITCH_TIME){
     // 星の出現、star_ratioで全部の円のうち何割星にするか決める。
+    reset_background();
       star_ratio=0.8;
       draw_alpha = count_alpha(t, 5);
       drawstar(int(STAR_NUM*star_ratio),int(ELP_NUM*(1-star_ratio)), draw_alpha);
       drawelp(int(ELP_NUM*(1-star_ratio)), new_elp_diameter, draw_alpha); 
 
-  }else if (t>9*SWITCH_TIME){
-      start_t = hour()*3600+minute()*60+second();
-  }else{
+  }else if (t>9*SWITCH_TIME&t<=14*SWITCH_TIME){
+    figure(200);
+  }else if(t>14*SWITCH_TIME&t<=17*SWITCH_TIME){
+    reset_background();
+    draw_firework(t<=16*SWITCH_TIME);
+  }else if(t>17*SWITCH_TIME){
+        start_t = hour()*3600+minute()*60+second();
+  }
+  else{
     //   デフォルト
+    reset_background();
       draw_alpha = FIX_ALPHA;
       drawelp(1, elp_diameter, draw_alpha);
   }
@@ -191,4 +261,84 @@ class Star {
          x--; 
         }
     }
+}
+
+PImage createLight(float rPower,float gPower,float bPower){
+  int side=64;
+  float center=side/2.0;
+
+  PImage img=createImage(side,side,RGB);
+
+  for(int y=0;y<side;y++){
+    for(int x=0;x<side;x++){
+      float distance=(sq(center-x)+sq(center-y))/10.0;
+      int r=int((255*rPower)/distance);
+      int g=int((255*gPower)/distance);
+      int b=int((255*bPower)/distance);
+      img.pixels[x+y*side]=color(r,g,b);
+    }
+  }
+  return img;
+}
+
+//花火クラス
+class Fireworks{
+  //花火の火の数
+  int num=512;
+  //花火の中心の初期位置
+  PVector centerPosition=new PVector(random(width/8,width*7/8),random(height/2,height*4/5),random(-100,100));
+  //花火の中心の初期速度
+  PVector velocity=new PVector(0,-22,0);
+  //重力
+  PVector accel=new PVector(0,0.4,0);
+  PImage img;
+
+  float radius;
+
+  PVector[] firePosition=new PVector[num];
+
+
+  Fireworks(float r){
+    float cosTheta;
+    float sinTheta;
+    float phi;
+    float colorchange=random(0,5);
+
+    radius=r;
+    for (int i=0;i<num;i++){
+      cosTheta = random(0,1) * 2 - 1;
+      sinTheta = sqrt(1- cosTheta*cosTheta);
+      phi = random(0,1) * 2 * PI;
+      firePosition[i]=new PVector(radius * sinTheta * cos(phi),radius * sinTheta * sin(phi),radius * cosTheta);
+      firePosition[i]=PVector.mult(firePosition[i],1.12);
+    }
+    //色をランダムで初期化(綺麗な色が出やすいように調整)
+    if(colorchange>=3.8){
+      img=createLight(0.9,random(0.2,0.5),random(0.2,0.5));
+    }else if(colorchange>3.2){
+      img=createLight(random(0.2,0.5),0.9,random(0.2,0.5));
+    }else if(colorchange>2){
+      img=createLight(random(0.2,0.5),random(0.2,0.5),0.9);
+    } else {
+      img=createLight(random(0.5,0.8),random(0.5,0.8),random(0.5,0.8));
+    }
+  }
+
+  void display(){
+    for (int i=0;i<num;i++){
+      pushMatrix();
+      translate(centerPosition.x,centerPosition.y,centerPosition.z);
+      translate(firePosition[i].x,firePosition[i].y,firePosition[i].z);
+      image(img,0,0);
+      popMatrix();
+
+      firePosition[i]=PVector.mult(firePosition[i],1.015);
+    }
+  }
+
+  void update(){
+    radius=dist(0,0,0,firePosition[0].x,firePosition[0].y,firePosition[0].z);
+    centerPosition.add(velocity);
+    velocity.add(accel);
+  }
 }
